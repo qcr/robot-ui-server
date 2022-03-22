@@ -1,0 +1,11 @@
+{
+  "topics": [
+    {
+      "topic_name": "/test",
+      "message_type": "std_msgs/String"
+    }
+  ],
+  "video": [
+    "/usb_cam/image_raw"
+  ]
+}
