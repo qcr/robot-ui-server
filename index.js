@@ -29,6 +29,22 @@ class Listener {
   };
 }
 
+class Connection {
+  constructor(connection) {
+    this.connection = connection;
+    this.publishers = {};
+  }
+
+  addPublisher(nh, topic_name, message_type) {
+    if (this.publishers[topic_name] !== undefined) return
+    this.publishers[topic_name] = nh.advertise(topic_name, message_type);
+  }
+
+  removePublisher(nh, topic_name, message_type) {
+    delete this.publishers[topic_name];
+  }
+}
+
 class MediaListener extends Listener {
   constructor(nh, topic_name, stream) {
     super(nh, topic_name, 'sensor_msgs/Image')
@@ -69,7 +85,7 @@ class MediaListener extends Listener {
 
   const stream = new MediaStream(); 
 
-  await rosnodejs.initNode('/my_node');
+  await rosnodejs.initNode('/platform');
   const nh = rosnodejs.nh;
 
   const listeners = [];
@@ -105,12 +121,20 @@ class MediaListener extends Listener {
   peer.on('connection', function(conn) {
 
     console.log('Connection received');
+    const connection = new Connection(conn);
+
     conn.on('open', () => {
       listeners.forEach(listener => listener.addConnection(conn));
       peer.call(conn.peer, stream); 
       console.log('Connection open');
     });
     conn.on('data', function(data){
+      if (data.type === 'topics') {
+        data.data.forEach(t => connection.addPublisher(nh, t.name, t.type));
+      }
+      if (data.type === 'msg') {
+        connection.publishers[data.name].publish(data.data);
+      }
       console.log(data);
     });
     conn.on('close', () => listeners.forEach(listener => {
