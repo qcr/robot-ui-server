@@ -1,13 +1,4 @@
-#include <assert.h>
-#include <iostream>
-#include <string>
 #include <napi.h>
-
-static void ArrayConsumer(const int32_t* array, size_t length) {
-  for (size_t index = 0; index < length; index++) {
-    fprintf(stderr, "array[%lu] = %d\n", index, array[index]);
-  }
-}
 
 static Napi::Value Method(const Napi::CallbackInfo& info) {
   if (info.Length() != 1) {

@@ -7,52 +7,70 @@ const { MediaStream } = require('wrtc');
 const addon = require('bindings')('imgmsg2rgba');
 
 const { Peer } = require('peerjs-on-node');
+const l = require('peerjs-on-node/dist/peerjs-on-node');
 
-class Listener {
+class Subscriber {
+  static subscribers = {};
+
   constructor(nh, topic_name, message_type) {
     this.connections = [];
-    nh.subscribe(topic_name, message_type, (msg) => this.handle(msg));
+    this.topic_name = topic_name;
+    this.message_type = message_type;
+
+    this.subscriber = nh.subscribe(this.topic_name, this.message_type, (msg) => this.handle(msg));
   }
 
-  addConnection(conn) {
-    this.connections.push(conn);
+  static addConnection(conn, nh, topic_name, message_type) {
+    if (!Subscriber.subscribers[topic_name]) {
+      Subscriber.subscribers[topic_name] = new Subscriber(nh, topic_name, message_type);
+    }
+    this.subscribers[topic_name].connections.push(conn);
   }
 
   removeConnection(conn) {
-    this.connections = this.connections.filter(function(value){ 
+    if (!(this.topic_name in Subscriber.subscribers)) {
+      return;
+    }
+    
+    const subscriber = Subscriber.subscribers[this.topic_name];
+
+    subscriber.connections = subscriber.connections.filter((value) => { 
       return value !== conn;
     });
+    console.log(`Removed connection (${subscriber.connections.length} remaining)`);
+    if (subscriber.connections.length === 0) {
+      console.log('Destroying subscriber');
+      this.subscriber.shutdown();
+      delete Subscriber.subscribers[this.topic_name];
+    }
   }
 
   handle(msg) {
-    this.connections.forEach(conn => conn.send(JSON.stringify(msg)));
+    this.connections.forEach(conn => conn.send(JSON.stringify(
+      {
+        type: 'msg',
+        name: this.topic_name,
+        data: msg
+      }
+    )));
   };
 }
 
-class Connection {
-  constructor(connection) {
-    this.connection = connection;
-    this.publishers = {};
-  }
-
-  addPublisher(nh, topic_name, message_type) {
-    if (this.publishers[topic_name] !== undefined) return
-    this.publishers[topic_name] = nh.advertise(topic_name, message_type);
-  }
-
-  removePublisher(nh, topic_name, message_type) {
-    delete this.publishers[topic_name];
-  }
-}
-
-class MediaListener extends Listener {
-  constructor(nh, topic_name, stream) {
+class VideoSubscriber extends Subscriber {
+  constructor(nh, topic_name) {
     super(nh, topic_name, 'sensor_msgs/Image')
 
     this.source = new RTCVideoSource();
     this.track = this.source.createTrack();
     this.track.label = topic_name;
-    stream.addTrack(this.track);
+  }
+
+  static addConnection(conn, nh, topic_name, stream) {
+    if (!Subscriber.subscribers[topic_name]) {
+      Subscriber.subscribers[topic_name] = new VideoSubscriber(nh, topic_name, conn.stream);
+    }
+    this.subscribers[topic_name].connections.push(conn);
+    stream.addTrack(this.subscribers[topic_name].track);
   }
 
   handle(msg) {
@@ -71,32 +89,63 @@ class MediaListener extends Listener {
     } catch (err) {
       console.log(err.message)
     }
-    //this.connections.forEach(conn => conn.send(JSON.stringify(msg)));
   };
 }
 
 
-(async function() {
-  const text = fs.readFileSync('./topics.json', { encoding: 'utf-8' });
-  const data = JSON.parse(text);
+class Connection {
+  constructor(connection) {
+    this.connection = connection;
+    this.publishers = {};
+    this.stream = new MediaStream();
+    this.called = false;
+  }
 
-  const topics = data.topics;
-  const video = data.video;
+  destroy() {
+    Object.keys(this.publishers).forEach(topic_name => this.removePublisher(topic_name));
+    Object.keys(Subscriber.subscribers).forEach(
+      topic_name => Subscriber.subscribers[topic_name].removeConnection(this.connection)
+    )
+  }
+
+  addPublisher(nh, topic_name, message_type) {
+    if (this.publishers[topic_name] !== undefined) return
+    this.publishers[topic_name] = nh.advertise(topic_name, message_type);
+  }
+  removePublisher(topic_name) {
+    this.publishers[topic_name].shutdown();
+    delete this.publishers[topic_name];
+  }
+
+  attachTopic(nh, topic_name, message_type) {
+    Subscriber.addConnection(this.connection, nh, topic_name, message_type)
+  }
+  detachTopic(nh, topic_name) {
+    Subscriber.subscribers[topic_name].removeConnection(this.connection);
+  }
+  attachStream(nh, topic_name) {
+    VideoSubscriber.addConnection(this.connection, nh, topic_name, this.stream);
+    this.connection.send(JSON.stringify({
+      type: 'streams',
+      data: this.stream.getTracks().reduce(
+        (previous, current) => Object.assign(previous, { [current.label]: current.id }), {}
+      )
+    }));
+  }
+  detachStream(nh, topic_name) {
+    Subscriber.subscribers[topic_name].removeConnection(this.connection);
+  }
+}
+
+
+
+(async function() {
+  let peer = null;
 
   const stream = new MediaStream(); 
 
   await rosnodejs.initNode('/platform');
   const nh = rosnodejs.nh;
-
-  const listeners = [];
-
-  topics.forEach(topic => {
-    listeners.push(new Listener(nh, topic.topic_name, topic.message_type))
-  });
-
-  video.forEach(topic_name => {
-    listeners.push(new MediaListener(nh, topic_name, stream))
-  });
 
   const secure = false;
 
@@ -110,35 +159,70 @@ class MediaListener extends Listener {
     { urls: 'turn:turn.cirrusrobotics.com.au:3478', username: process.env.TURN_USER, credential: process.env.TURN_PASS }
   ]} : {}
 
-  var peer = new Peer(process.env.ID, { 
-    host, port, path: '/', secure, config
-  }); 
+  function connect() {
+    if (peer) {
+      return;
+    }
+    
+    peer = new Peer(process.env.ID, { 
+      host, port, path: '/', secure, config
+    }); 
 
-  peer.on('open', function() {
-    console.log(`Listening as: ${process.env.NAME || process.env.ID}`);
-  });
+    peer.socket._socket.on('error', (e) => {
+    });  
 
-  peer.on('connection', function(conn) {
-
-    console.log('Connection received');
-    const connection = new Connection(conn);
-
-    conn.on('open', () => {
-      listeners.forEach(listener => listener.addConnection(conn));
-      peer.call(conn.peer, stream); 
-      console.log('Connection open');
+    peer.on('open', function() {
+      console.log(`Listening as: ${process.env.NAME || process.env.ID}`);
     });
-    conn.on('data', function(data){
-      if (data.type === 'topics') {
-        data.data.forEach(t => connection.addPublisher(nh, t.name, t.type));
-      }
-      if (data.type === 'msg') {
-        connection.publishers[data.name].publish(data.data);
-      }
-      console.log(data);
+
+    peer.on('error', function() {
+      peer = null;
+      setTimeout(connect, 1000);
     });
-    conn.on('close', () => listeners.forEach(listener => {
-      listener.removeConnection(conn);
-    }));
-  });
+
+    peer.on('close', () => {
+      peer = null;
+      setTimeout(connect, 1000);
+    });
+
+    peer.on('connection', function(conn) {
+
+      console.log('Connection received');
+      const connection = new Connection(conn);
+
+      conn.on('open', () => {
+        console.log('Connection open');
+      });
+      conn.on('data', function(data){
+        if (data.type === 'advertiseTopics') {
+          data.data.forEach(t => connection.addPublisher(nh, t.name, t.type));
+        }
+        if (data.type === 'attachTopics') {
+          data.data.forEach(t => connection.attachTopic(nh, t.name, t.type));
+        }
+        if (data.type === 'detachTopics') {
+          data.data.forEach(t => connection.detachTopic(nh, t.name, t.type));
+        }
+        if (data.type === 'attachStreams') {
+          data.data.forEach(name => connection.attachStream(nh, name));
+          if (!connection.called) {
+            peer.call(conn.peer, connection.stream);
+            connection.called = true;
+          }
+        }
+        if (data.type === 'detachStreams') {
+          data.data.forEach(t => connection.detachStream(nh, t.name));
+        }
+        if (data.type === 'msg') {
+          connection.publishers[data.name].publish(data.data);
+        }
+        console.log(data);
+      });
+      conn.on('close', () => {
+        connection.destroy();
+        console.log('Closed');
+      });
+    });
+  }
+  connect();
 })();
