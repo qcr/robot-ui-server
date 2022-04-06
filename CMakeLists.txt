@@ -9,6 +9,8 @@ project(qcr_platform)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED)
 
+set(MINIMUM_NODE_VERSION 14)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -145,6 +147,15 @@ include_directories(
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+
+execute_process (
+    COMMAND bash -c "echo $(node --version | grep -o v[^.]* | cut -c2-)"
+    OUTPUT_VARIABLE NODE_VERSION
+)
+
+if (NOT NODE_VERSION OR NODE_VERSION LESS ${MINIMUM_NODE_VERSION})
+    message(FATAL_ERROR "Intalled node version is too low. Please install version ${MINIMUM_NODE_VERSION} or later\nSee for instructions: https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions")
+endif()
 
 execute_process (
     COMMAND bash -c "cd ${CMAKE_CURRENT_SOURCE_DIR} && npm install"
