@@ -159,8 +159,8 @@ class Connection {
   const port = secure ? 443 : 9000;
 
   const config = secure ? {'iceServers': [
-    { urls: 'stun:stun.cirrusrobotics.com.au:3478', username: process.env.TURN_USER, credential: process.env.TURN_PASS },
-    { urls: 'turn:turn.cirrusrobotics.com.au:3478', username: process.env.TURN_USER, credential: process.env.TURN_PASS }
+    { urls: 'stun:stun.cirrusrobotics.com.au:3478', username: process.env.TURN_TOKEN, credential: process.env.TURN_KEY },
+    { urls: 'turn:turn.cirrusrobotics.com.au:3478', username: process.env.TURN_TOKEN, credential: process.env.TURN_KEY }
   ]} : {}
   
   function connect() {
