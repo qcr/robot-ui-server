@@ -31,9 +31,9 @@ static Napi::Value Method(const Napi::CallbackInfo& info) {
   int out_stride = 4;
 
   for (uint32_t i = 0; i < buffer.ByteLength() / 3; i++) {
-    out.Data()[i*out_stride+0] = buffer.Data()[i*buf_stride+0];
+    out.Data()[i*out_stride+0] = buffer.Data()[i*buf_stride+2];
     out.Data()[i*out_stride+1] = buffer.Data()[i*buf_stride+1];
-    out.Data()[i*out_stride+2] = buffer.Data()[i*buf_stride+2];
+    out.Data()[i*out_stride+2] = buffer.Data()[i*buf_stride+0];
     out.Data()[i*out_stride+4] = 255;
   }
   

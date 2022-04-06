@@ -1,3 +1,7 @@
+#!/usr/bin/env node
+
+process.chdir(__dirname);
+
 require('dotenv').config();
 const fs = require('fs');
 const rosnodejs = require('rosnodejs');
@@ -147,7 +151,7 @@ class Connection {
   await rosnodejs.initNode('/platform');
   const nh = rosnodejs.nh;
 
-  const secure = false;
+  const secure = true;
 
   console.log(`Secure: ${secure}`)
   
@@ -158,24 +162,28 @@ class Connection {
     { urls: 'stun:stun.cirrusrobotics.com.au:3478', username: process.env.TURN_USER, credential: process.env.TURN_PASS },
     { urls: 'turn:turn.cirrusrobotics.com.au:3478', username: process.env.TURN_USER, credential: process.env.TURN_PASS }
   ]} : {}
-
+  
   function connect() {
     if (peer) {
       return;
     }
+
+    console.log('Connecting')
     
     peer = new Peer(process.env.ID, { 
       host, port, path: '/', secure, config
     }); 
 
     peer.socket._socket.on('error', (e) => {
+      console.log(e)
     });  
 
     peer.on('open', function() {
       console.log(`Listening as: ${process.env.NAME || process.env.ID}`);
     });
 
-    peer.on('error', function() {
+    peer.on('error', function(e) {
+      console.error(e.message);
       peer = null;
       setTimeout(connect, 1000);
     });
