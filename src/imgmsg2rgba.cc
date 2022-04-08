@@ -13,6 +13,9 @@ static Napi::Value Method(const Napi::CallbackInfo& info) {
   }
 
   Napi::Object obj = info[0].As<Napi::Object>();
+  
+  std::string encoding = obj.Get("encoding").As<Napi::String>().Utf8Value();
+
   int32_t width = obj.Get("width").As<Napi::Number>().Int32Value();
   int32_t height = obj.Get("height").As<Napi::Number>().Int32Value();
   
@@ -30,10 +33,12 @@ static Napi::Value Method(const Napi::CallbackInfo& info) {
   int buf_stride = 3;
   int out_stride = 4;
 
+  bool invert = encoding.compare("bgr8") == 0;
+
   for (uint32_t i = 0; i < buffer.ByteLength() / 3; i++) {
-    out.Data()[i*out_stride+0] = buffer.Data()[i*buf_stride+2];
-    out.Data()[i*out_stride+1] = buffer.Data()[i*buf_stride+1];
-    out.Data()[i*out_stride+2] = buffer.Data()[i*buf_stride+0];
+    out.Data()[i*out_stride+0] = buffer.Data()[i*buf_stride + (invert ? 2 : 0)];
+    out.Data()[i*out_stride+1] = buffer.Data()[i*buf_stride + 1];
+    out.Data()[i*out_stride+2] = buffer.Data()[i*buf_stride + (invert ? 0 : 2)];
     out.Data()[i*out_stride+4] = 255;
   }
   
