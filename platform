@@ -202,6 +202,9 @@ class Connection {
         console.log('Connection open');
       });
       conn.on('data', function(data){
+        if (data.type === 'ping') {
+          conn.send(JSON.stringify({type: 'pong'}));
+        }
         if (data.type === 'advertiseTopics') {
           data.data.forEach(t => connection.addPublisher(nh, t.name, t.type));
         }
