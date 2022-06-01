@@ -202,6 +202,7 @@ class Connection {
         console.log('Connection open');
       });
       conn.on('data', function(data){
+        console.log(data);
         if (data.type === 'ping') {
           conn.send(JSON.stringify({type: 'pong'}));
         }
@@ -227,7 +228,6 @@ class Connection {
         if (data.type === 'msg') {
           connection.publishers[data.name].publish(data.data);
         }
-        console.log(data);
       });
       conn.on('close', () => {
         connection.destroy();
