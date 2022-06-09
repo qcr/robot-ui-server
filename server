@@ -151,7 +151,8 @@ class Connection {
   await rosnodejs.initNode('/platform');
   const nh = rosnodejs.nh;
 
-  const secure = true;
+  const local = process.argv.indexOf('--local') === -1 && process.argv.indexOf('-l') === -1
+  const secure = true && !local;
 
   console.log(`Secure: ${secure}`)
   
@@ -163,20 +164,42 @@ class Connection {
     { urls: 'turn:turn.cirrusrobotics.com.au:3478', username: process.env.TURN_TOKEN, credential: process.env.TURN_KEY }
   ]} : {}
   
+  if (local) {
+    const peerServer = PeerServer({
+        port: 9000,
+        proxied: true,
+        debug: true
+    });
+    
+    peerServer.on('connection', (client) => { 
+        try {
+            console.log(`Registered: ${client.id}`);
+        } catch (err) {
+            console.log(err);
+        }
+    });
+    
+    peerServer.on('disconnect', (client) => { 
+        console.log(`Removed: ${client.id}`);
+    });
+  }
+  
   function connect() {
     if (peer) {
       return;
     }
-
+    
     console.log('Connecting')
     
     peer = new Peer(process.env.ID, { 
       host, port, path: '/', secure, config
     }); 
 
-    peer.socket._socket.on('error', (e) => {
-      console.log(e)
-    });  
+    if (peer.socket._socket) {
+        peer.socket._socket.on('error', (e) => {
+        console.log(e)
+        });  
+    }
 
     peer.on('open', function() {
       console.log(`Listening as: ${process.env.NAME || process.env.ID}`);
