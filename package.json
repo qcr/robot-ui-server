@@ -12,6 +12,7 @@
     "dotenv": "^16.0.0",
     "node-addon-api": "^4.3.0",
     "node-pre-gyp": "^0.17.0",
+    "peer": "^0.6.1",
     "peerjs-on-node": "^1.0.2",
     "rosnodejs": "^3.0.2",
     "wrtc": "^0.4.7"

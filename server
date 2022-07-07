@@ -10,8 +10,8 @@ const { MediaStream } = require('wrtc');
 
 const addon = require('bindings')('imgmsg2rgba');
 
+const { PeerServer } = require('peer');
 const { Peer } = require('peerjs-on-node');
-const l = require('peerjs-on-node/dist/peerjs-on-node');
 
 class Subscriber {
   static subscribers = {};
@@ -96,7 +96,6 @@ class VideoSubscriber extends Subscriber {
   };
 }
 
-
 class Connection {
   constructor(connection) {
     this.connection = connection;
@@ -141,8 +140,6 @@ class Connection {
   }
 }
 
-
-
 (async function() {
   let peer = null;
 
@@ -151,7 +148,7 @@ class Connection {
   await rosnodejs.initNode('/platform');
   const nh = rosnodejs.nh;
 
-  const local = process.argv.indexOf('--local') === -1 && process.argv.indexOf('-l') === -1
+  const local = process.argv.indexOf('--local') !== -1 && process.argv.indexOf('-l') !== -1
   const secure = true && !local;
 
   console.log(`Secure: ${secure}`)
