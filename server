@@ -155,11 +155,6 @@ class Connection {
   
   const host = secure ? 'platforms.qcr.ai' : 'localhost'
   const port = secure ? 443 : 9000;
-
-  const config = secure ? {'iceServers': [
-    { urls: 'stun:qcr.ai:3478', username: process.env.TURN_TOKEN, credential: process.env.TURN_KEY },
-    { urls: 'turn:qcr.ai:3478', username: process.env.TURN_TOKEN, credential: process.env.TURN_KEY }
-  ]} : {}
   
   if (local) {
     const peerServer = PeerServer({
@@ -189,7 +184,7 @@ class Connection {
     console.log('Connecting')
     
     peer = new Peer(process.env.ID, { 
-      host, port, path: '/', secure, config
+      host, port, path: '/', secure, token: process.env.TOKEN
     }); 
 
     if (peer.socket._socket) {
