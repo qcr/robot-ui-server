@@ -28,7 +28,6 @@ The following instructions must be followed to allow the server to run as intend
 
 1. Follow the NodeJs installation instructions as described [above](#installing-nodejs-on-ubuntu)
 2. Create a catkin workspace at a directory of your choosing. This instruction set will assume you are in your home directory for simplicity:
-*NOTE: This is a private repo at the moment, please see the [contacts](#contact-information) section below for any inquires*
 ```bash
 # Make a catkin_ws directory with a src folder (you will clone in the repo at this location)
 mdkir ~/catkin_ws/src; cd ~/catkin_ws/src
@@ -60,8 +59,7 @@ cp env-template .env
 2. Open the ***.env*** file in an editor of your choice and add data to the following:
 
     - ***ID:*** this is the ID that the QCR Platforms UI will use to communicate to this server. This can be anything of your choosing.
-    - ***TURN_TOKEN:*** A generated Token that is provided when registering your server with the [QCR platform UI](https://platforms.qcr.ai/). ***INSTRUCTIONS TBD***
-    - ***TURN_KEY:*** A generated Token that is provided when registering your server with the [QCR platform UI](https://platforms.qcr.ai/). ***INSTRUCTIONS TBD***
+    - ***TOKEN:*** A generated Token that is provided when registering your server with the [QCR platform UI](https://platforms.qcr.ai/). ***INSTRUCTIONS TBD***
 
 NOTE: the above steps should be repeated if the demonstration changes, etc.
 
